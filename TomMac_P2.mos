@@ -53,7 +53,7 @@ declarations
   NewContractPrice: array(Products) of real
 
 
-  MixUses: array(Products, Quarters) of mpvar
+  MixUses: array(Products, Quarters, Contents) of mpvar
 end-declarations
 
 initialisations from "TomMac.dat"
@@ -743,8 +743,12 @@ repeat
   forall(p in Products, q in Quarters) do
     Mix(p, q) := sum(v in Varieties) Tomatoes(v, p, q)
 
-    forall(c in Contents) MixCSLB(p, q, c) := sum(v in Varieties) (TomatoProperties(c, v)) * Tomatoes(v, p, q) = Mix(p, q)*ProductProperties(c, p)
-    forall(c in Contents) MixCSUB(p, q, c) := sum(v in Varieties) (TomatoProperties(c, v)) * Tomatoes(v, p, q) = Mix(p, q)*ProductProperties(c, p)
+    forall(c in Contents) MixLB(p,q,c) := MixUses(p,q,c) >= Mix(p, q)*(ProductProperties(c, p)-mu)
+    forall(c in Contents) MixUB(p,q,c) := MixUses(p,q,c) <= Mix(p, q)*(ProductProperties(c, p)+mu)
+
+    forall(c in Contents) MixCS(p, q, c) := sum(v in Varieties) TomatoProperties(c, v) * Tomatoes(v, p, q) = MixUses(p,q,c)
+
+
 
     Make(p, q) := (1 + OtherIngredientFactor(p))*ProductReduction(p)*Mix(p, q)
     MakeCS(p, q) := Make(p, q) <= ProductionLimit(p)*(1+NewProductionIncrease/100)
@@ -770,7 +774,7 @@ repeat
   forall(q in Quarters) do
     TomCost(q) := sum(v in Varieties, p in Products) TomatoCost(v, q) * Tomatoes(v, p, q)
     ProdCost(q) := sum(p in Products) Make(p, q)*ProductionCostNew(p)
-    OtherProdCost(q) := sum(p in Products) OtherIngredientFactor(p)*ProductReduction(p)*MixUses(p, q)*OtherIngredientCost(p)
+    OtherProdCost(q) := sum(p in Products) OtherIngredientFactor(p)*ProductReduction(p)*Mix(p, q)*OtherIngredientCost(p)
     WarehouseCost(q) := SpaceUsed(q) * StorageCost
 
 
