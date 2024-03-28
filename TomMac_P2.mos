@@ -87,7 +87,8 @@ end-do
 
 ! Mix constraints for creating product
 forall(p in Products, q in Quarters) do
-  Mix(p, q) := sum(c in Contents, v in Varieties) TomatoProperties(c, v) * Tomatoes(v, p, q)/ProductProperties(c, p)
+  Mix(p, q) := sum(v in Varieties) Tomatoes(v, p, q)
+  forall(c in Contents) MixCS(p, q, c) := sum(v in Varieties) TomatoProperties(c, v) * Tomatoes(v, p, q) = Mix(p, q)*ProductProperties(c, p)
   Make(p, q) := (1 + OtherIngredientFactor(p))*ProductReduction(p)*Mix(p, q)
   MakeCS(p, q) := Make(p, q) <= ProductionLimit(p)
 end-do
@@ -333,7 +334,7 @@ writeln("Strategic decisions")
 ! Update sale prices by +20%
 forall(p in Products) do
   SalePriceNew(p) := SalePrice(p) * (1+PriceChange/100)
-  ContractPriceNew(p) := (ContractPrice(p)+NewContractPrice(p)) * (1+PriceChange/100)
+  ContractPriceNew(p) := (ContractPrice(p)) * (1+PriceChange/100)
 end-do
 
 ! Update production costs by +5%
@@ -370,9 +371,9 @@ writeln("Optimal objective £", getsol(TotalProfit))
 ! 3 = new production
 
 
-! None - £75564.11613
+! None - £48325.28612
 
-! 1 only - £73411.39015
+! 1 only - £49937.47448
 forall(q in Quarters) do
 	SpaceUsed(q) := sum(p in Products) Stock(p, q)
 	WarehouseCS(q) := SpaceUsed(q) <= WarehouseSize + NewWarehouseSize
@@ -390,7 +391,7 @@ writeln
 writeln("New warehouse only")
 writeln("Optimal objective £", getsol(TotalProfit))
 
-! 2 only - £204866.6974
+! 2 only - INFEASIBLE
 forall(q in Quarters) do
 	SpaceUsed(q) := sum(p in Products) Stock(p, q)
 	WarehouseCS(q) := SpaceUsed(q) <= WarehouseSize
@@ -425,7 +426,7 @@ writeln
 writeln("New contract only")
 writeln("Optimal objective £", getsol(TotalProfit))
 
-! 3 only - £75496.80387
+! 3 only - £748316.75079
 forall(p in Products, q in Quarters) do
   ContractCS(p, q) := Sell(p, q) >= Contract(p)
   DemandCS(p, q) := Sell(p, q) <= Demand(p)+Contract(p)
@@ -440,12 +441,14 @@ forall(q in Quarters) do
   PeriodIncome(q) := sum(p in Products) ((Sell(p, q) - Contract(p))*SalePriceNew(p) + ContractPriceNew(p)*Contract(p))
 end-do
 
-
+! Mix constraints for creating product
 forall(p in Products, q in Quarters) do
-  Mix(p, q) := sum(c in Contents, v in Varieties) TomatoProperties(c, v) * Tomatoes(v, p, q)/ProductProperties(c, p)
+  Mix(p, q) := sum(v in Varieties) Tomatoes(v, p, q)
+  forall(c in Contents) MixCS(p, q, c) := sum(v in Varieties) TomatoProperties(c, v) * Tomatoes(v, p, q) = Mix(p, q)*ProductProperties(c, p)
   Make(p, q) := (1 + OtherIngredientFactor(p))*ProductReduction(p)*Mix(p, q)
   MakeCS(p, q) := Make(p, q) <= ProductionLimit(p)*(1+NewProductionIncrease/100)
 end-do
+
 
 
 TotalCost := NewProductionCost + sum(q in Quarters) PeriodCost(q)
@@ -461,7 +464,7 @@ writeln
 writeln("New production only")
 writeln("Optimal objective £", getsol(TotalProfit))
 
-! 1 and 3 - £73318.24205
+! 1 and 3 - £49848.50914
 forall(q in Quarters) do
 	SpaceUsed(q) := sum(p in Products) Stock(p, q)
 	WarehouseCS(q) := SpaceUsed(q) <= WarehouseSize + NewWarehouseSize
@@ -481,9 +484,10 @@ writeln("Optimal objective £", getsol(TotalProfit))
 
 
 
-! 1 and 2 - £202925.5197
+! 1 and 2 - £158725.8575
 forall(p in Products, q in Quarters) do
-  Mix(p, q) := sum(c in Contents, v in Varieties) TomatoProperties(c, v) * Tomatoes(v, p, q)/ProductProperties(c, p)
+  Mix(p, q) := sum(v in Varieties) Tomatoes(v, p, q)
+  forall(c in Contents) MixCS(p, q, c) := sum(v in Varieties) TomatoProperties(c, v) * Tomatoes(v, p, q) = Mix(p, q)*ProductProperties(c, p)
   Make(p, q) := (1 + OtherIngredientFactor(p))*ProductReduction(p)*Mix(p, q)
   MakeCS(p, q) := Make(p, q) <= ProductionLimit(p)
 end-do
@@ -518,7 +522,7 @@ writeln
 writeln("New warehouse and new contract")
 writeln("Optimal objective £", getsol(TotalProfit))
 
-! 2 and 3 - £204843.6769
+! 2 and 3 - INFEASIBLE
 forall(q in Quarters) do
 	SpaceUsed(q) := sum(p in Products) Stock(p, q)
 	WarehouseCS(q) := SpaceUsed(q) <= WarehouseSize
@@ -526,7 +530,8 @@ end-do
 
 
 forall(p in Products, q in Quarters) do
-  Mix(p, q) := sum(c in Contents, v in Varieties) TomatoProperties(c, v) * Tomatoes(v, p, q)/ProductProperties(c, p)
+  Mix(p, q) := sum(v in Varieties) Tomatoes(v, p, q)
+  forall(c in Contents) MixCS(p, q, c) := sum(v in Varieties) TomatoProperties(c, v) * Tomatoes(v, p, q) = Mix(p, q)*ProductProperties(c, p)
   Make(p, q) := (1 + OtherIngredientFactor(p))*ProductReduction(p)*Mix(p, q)
   MakeCS(p, q) := Make(p, q) <= ProductionLimit(p)*(1+NewProductionIncrease/100)
 end-do
@@ -545,7 +550,7 @@ writeln
 writeln("New contract and new production")
 writeln("Optimal objective £", getsol(TotalProfit))
 
-! 1 and 2 and 3 - £202980.6522
+! 1 and 2 and 3 - £158740.8082
 
 forall(q in Quarters) do
 	SpaceUsed(q) := sum(p in Products) Stock(p, q)
@@ -567,33 +572,11 @@ writeln("New warehouse and new contract and new production")
 writeln("Optimal objective £", getsol(TotalProfit))
 
 
-! best is new contract only
-writeln
-writeln("Best - new contract only")
-forall(q in Quarters) do
-	SpaceUsed(q) := sum(p in Products) Stock(p, q)
-	WarehouseCS(q) := SpaceUsed(q) <= WarehouseSize
-end-do
-
-
-forall(p in Products, q in Quarters) do
-  Mix(p, q) := sum(c in Contents, v in Varieties) TomatoProperties(c, v) * Tomatoes(v, p, q)/ProductProperties(c, p)
-  Make(p, q) := (1 + OtherIngredientFactor(p))*ProductReduction(p)*Mix(p, q)
-  MakeCS(p, q) := Make(p, q) <= ProductionLimit(p)
-end-do
-
-
-TotalCost := sum(q in Quarters) PeriodCost(q)
-TotalIncome := sum(q in Quarters) PeriodIncome(q)
-
-TotalProfit := TotalIncome - TotalCost
-
-
-maximise(TotalProfit)
-
-
-
+! best is all decisions
+writeln("Best")
 writeln("Optimal objective £", getsol(TotalProfit))
+writeln("Cost £", getsol(TotalCost))
+writeln("Income £", getsol(TotalIncome))
 
 forall(p in Products) do
 	writeln
@@ -757,15 +740,14 @@ repeat
 
 
 
-  ! Mix constraints for creating product
   forall(p in Products, q in Quarters) do
-    !Mix(p, q) := sum(c in Contents, v in Varieties) TomatoProperties(c, v) * Tomatoes(v, p, q)/ProductProperties(c, p)
+    Mix(p, q) := sum(v in Varieties) Tomatoes(v, p, q)
 
-    MixLB(p, q) := MixUses(p, q) >= sum(c in Contents, v in Varieties) (TomatoProperties(c, v)/ProductProperties(c, p) - mu)* Tomatoes(v, p, q)
-    MixUB(p, q) := MixUses(p, q) <= sum(c in Contents, v in Varieties) (TomatoProperties(c, v)/ProductProperties(c, p) + mu)* Tomatoes(v, p, q)
+    forall(c in Contents) MixCSLB(p, q, c) := sum(v in Varieties) (TomatoProperties(c, v)) * Tomatoes(v, p, q) = Mix(p, q)*ProductProperties(c, p)
+    forall(c in Contents) MixCSUB(p, q, c) := sum(v in Varieties) (TomatoProperties(c, v)) * Tomatoes(v, p, q) = Mix(p, q)*ProductProperties(c, p)
 
-    Make(p, q) := (1 + OtherIngredientFactor(p))*ProductReduction(p)*MixUses(p, q)
-    MakeCS(p, q) := Make(p, q) <= ProductionLimit(p)
+    Make(p, q) := (1 + OtherIngredientFactor(p))*ProductReduction(p)*Mix(p, q)
+    MakeCS(p, q) := Make(p, q) <= ProductionLimit(p)*(1+NewProductionIncrease/100)
   end-do
 
 
@@ -780,7 +762,7 @@ repeat
 
   forall(q in Quarters) do
   	SpaceUsed(q) := sum(p in Products) Stock(p, q)
-  	WarehouseCS(q) := SpaceUsed(q) <= WarehouseSize
+  	WarehouseCS(q) := SpaceUsed(q) <= WarehouseSize + NewWarehouseSize
   end-do
 
 
@@ -800,7 +782,7 @@ repeat
   end-do
 
 
-  TotalCost := sum(q in Quarters) PeriodCost(q)
+  TotalCost := NewWarehouseCost + NewProductionCost + sum(q in Quarters) PeriodCost(q)
   TotalIncome := sum(q in Quarters) PeriodIncome(q)
 
   TotalProfit := TotalIncome - TotalCost
