@@ -71,7 +71,7 @@ initialisations from "TomMacPlan.dat"
   PriceChange DemandChange ProductionCostChange
 end-initialisations
 
-
+forward procedure Report
 
 ! Contract + Demand constraints on sold product
 forall(p in Products, q in Quarters) do
@@ -137,10 +137,10 @@ TotalProfit := TotalIncome - TotalCost
 
 maximise(TotalProfit)
 
+Report
 
 
-
-
+procedure Report
 writeln
 writeln("Optimal objective £", getsol(TotalProfit))
 writeln("Cost £", getsol(TotalCost))
@@ -224,14 +224,14 @@ forall(q in Quarters) do
   writeln("In ",strfmt(PeriodNames(q),8))
   Slack := getslack(WarehouseCS(q))
   if Slack = 0 then
-    writeln("Warehouse fulled; value of increasing warehouse size is £",
+    writeln("Warehouse filled; value of increasing warehouse size is £",
     strfmt(getdual(WarehouseCS(q)), 8,2))
   else
     writeln("Warehouse not filled")
   end-if
 end-do
 
-
+end-procedure
 
 fopen("TomMac_BaseCase.csv", F_OUTPUT)
 ! Write profits, costs and incomes
@@ -573,41 +573,78 @@ writeln("Optimal objective £", getsol(TotalProfit))
 
 
 ! best is all decisions
-writeln("Best")
-writeln("Optimal objective £", getsol(TotalProfit))
-writeln("Cost £", getsol(TotalCost))
-writeln("Income £", getsol(TotalIncome))
-
-forall(p in Products) do
-	writeln
-	writeln(p, ":")
-	forall(q in Quarters) do
-		write("In ", PeriodNames(q), ": ")
-		write("make ", strfmt(getsol(Make(p, q)),8), "; ")
-		write("stock ", strfmt(getsol(Stock(p, q)),8), "; ")
-		write("sell ", strfmt(getsol(Sell(p, q)),8), "; ")
-		writeln
-	end-do
-end-do
-
-
-
-
-writeln
-forall(p in Products) do
-  writeln(p)
-  write(strfmt("Use",12)," | ")
-  forall(q in Quarters) write(strfmt(PeriodNames(q), 12), " | ")
-  writeln
-  forall(v in Varieties) do
-    write(strfmt(v, 12), " | ")
-    forall(q in Quarters) do
-    write(strfmt(getsol(Tomatoes(v, p, q)),12), " | ")
-    end-do
-    writeln
+! Update production costs by +5%
+  forall(p in Products) do
+    ProductionCostNew(p) := ProductionCost(p) * (1+ProductionCostChange/100)
   end-do
-  writeln
-end-do
+
+  ! Update demand 0%
+  forall(p in Products) do
+    DemandNew(p) := Demand(p) * (1+DemandChange/100)
+  end-do
+
+
+  ! Contract + Demand constraints on sold product
+  forall(p in Products, q in Quarters) do
+    ContractCS(p, q) := Sell(p, q) >= Contract(p) + NewContract(p)
+    DemandCS(p, q) := Sell(p, q) <= DemandNew(p)+Contract(p)+NewContract(p)
+  end-do
+  ! Supply constraints on tomatoes
+  forall(q in Quarters, v in Varieties) do
+    SupplyCS(v, q) := sum(p in Products) Tomatoes(v, p, q) <= TomatoSupply(v, q)
+  end-do
+
+
+
+  forall(p in Products, q in Quarters) do
+    Mix(p, q) := sum(v in Varieties) Tomatoes(v, p, q)
+    forall(c in Contents) MixCS(p, q, c) := sum(v in Varieties) TomatoProperties(c, v) * Tomatoes(v, p, q) = Mix(p, q)*ProductProperties(c, p)
+    Make(p, q) := (1 + OtherIngredientFactor(p))*ProductReduction(p)*Mix(p, q)
+    MakeCS(p, q) := Make(p, q) <= ProductionLimit(p)*(1+NewProductionIncrease/100)
+  end-do
+
+
+  ! Stock and stock constraints
+  forall(p in Products, q in Quarters) do
+  	if q = 1 then
+  		InventoryCS(p, q) := Stock(p, q) = Stock(p, NQuarters) + Make(p, q) - Sell(p, q)
+  	else
+  		InventoryCS(p, q) := Stock(p, q) = Stock(p, q-1)     + Make(p, q) - Sell(p, q)
+  	end-if
+  end-do
+
+  forall(q in Quarters) do
+  	SpaceUsed(q) := sum(p in Products) Stock(p, q)
+  	WarehouseCS(q) := SpaceUsed(q) <= WarehouseSize + NewWarehouseSize
+  end-do
+
+
+  ! Quarterly costs, incomes and profits
+  forall(q in Quarters) do
+    TomCost(q) := sum(v in Varieties, p in Products) TomatoCost(v, q) * Tomatoes(v, p, q)
+    ProdCost(q) := sum(p in Products) Make(p, q)*ProductionCostNew(p)
+    OtherProdCost(q) := sum(p in Products) OtherIngredientFactor(p)*ProductReduction(p)*Mix(p, q)*OtherIngredientCost(p)
+    WarehouseCost(q) := SpaceUsed(q) * StorageCost
+
+
+    PeriodCost(q) := ProdCost(q) + OtherProdCost(q) + WarehouseCost(q) + TomCost(q)
+    PeriodIncome(q) := sum(p in Products) ((Sell(p, q) - Contract(p)-NewContract(p))*SalePriceNew(p) + ContractPriceNew(p)*Contract(p) + NewContractPrice(p)*NewContract(p))
+
+
+    PeriodProfit(q) := PeriodIncome(q) - PeriodCost(q)
+  end-do
+
+
+  TotalCost := NewWarehouseCost + NewProductionCost + sum(q in Quarters) PeriodCost(q)
+  TotalIncome := sum(q in Quarters) PeriodIncome(q)
+
+  TotalProfit := TotalIncome - TotalCost
+
+
+
+  maximise(TotalProfit)
+
+  Report
 
 
 
@@ -711,35 +748,6 @@ mu := 0.0
 
 repeat
   write(mu,", ")
-  ! Update sale prices by +20%
-  forall(p in Products) do
-    SalePriceNew(p) := SalePrice(p) * (1+PriceChange/100)
-    ContractPriceNew(p) := (ContractPrice(p)+NewContractPrice(p)) * (1+PriceChange/100)
-  end-do
-
-  ! Update production costs by +5%
-  forall(p in Products) do
-    ProductionCostNew(p) := ProductionCost(p) * (1+ProductionCostChange/100)
-  end-do
-
-  ! Update demand 0%
-  forall(p in Products) do
-    DemandNew(p) := Demand(p) * (1+DemandChange/100)
-  end-do
-
-
-  ! Contract + Demand constraints on sold product
-  forall(p in Products, q in Quarters) do
-    ContractCS(p, q) := Sell(p, q) >= Contract(p) + NewContract(p)
-    DemandCS(p, q) := Sell(p, q) <= DemandNew(p)+Contract(p)+NewContract(p)
-  end-do
-  ! Supply constraints on tomatoes
-  forall(q in Quarters, v in Varieties) do
-    SupplyCS(v, q) := sum(p in Products) Tomatoes(v, p, q) <= TomatoSupply(v, q)
-  end-do
-
-
-
   forall(p in Products, q in Quarters) do
     Mix(p, q) := sum(v in Varieties) Tomatoes(v, p, q)
 
@@ -753,44 +761,6 @@ repeat
     Make(p, q) := (1 + OtherIngredientFactor(p))*ProductReduction(p)*Mix(p, q)
     MakeCS(p, q) := Make(p, q) <= ProductionLimit(p)*(1+NewProductionIncrease/100)
   end-do
-
-
-  ! Stock and stock constraints
-  forall(p in Products, q in Quarters) do
-  	if q = 1 then
-  		InventoryCS(p, q) := Stock(p, q) = Stock(p, NQuarters) + Make(p, q) - Sell(p, q)
-  	else
-  		InventoryCS(p, q) := Stock(p, q) = Stock(p, q-1)     + Make(p, q) - Sell(p, q)
-  	end-if
-  end-do
-
-  forall(q in Quarters) do
-  	SpaceUsed(q) := sum(p in Products) Stock(p, q)
-  	WarehouseCS(q) := SpaceUsed(q) <= WarehouseSize + NewWarehouseSize
-  end-do
-
-
-  ! Quarterly costs, incomes and profits
-  forall(q in Quarters) do
-    TomCost(q) := sum(v in Varieties, p in Products) TomatoCost(v, q) * Tomatoes(v, p, q)
-    ProdCost(q) := sum(p in Products) Make(p, q)*ProductionCostNew(p)
-    OtherProdCost(q) := sum(p in Products) OtherIngredientFactor(p)*ProductReduction(p)*Mix(p, q)*OtherIngredientCost(p)
-    WarehouseCost(q) := SpaceUsed(q) * StorageCost
-
-
-    PeriodCost(q) := ProdCost(q) + OtherProdCost(q) + WarehouseCost(q) + TomCost(q)
-    PeriodIncome(q) := sum(p in Products) ((Sell(p, q) - Contract(p)-NewContract(p))*SalePriceNew(p) + ContractPriceNew(p)*Contract(p) + NewContractPrice(p)*NewContract(p))
-
-
-    PeriodProfit(q) := PeriodIncome(q) - PeriodCost(q)
-  end-do
-
-
-  TotalCost := NewWarehouseCost + NewProductionCost + sum(q in Quarters) PeriodCost(q)
-  TotalIncome := sum(q in Quarters) PeriodIncome(q)
-
-  TotalProfit := TotalIncome - TotalCost
-
 
 
   maximise(TotalProfit)
