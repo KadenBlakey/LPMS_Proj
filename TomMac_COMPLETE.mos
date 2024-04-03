@@ -533,9 +533,9 @@ else
 end-if
 
 ! To test the other combinations, you can use the above code
-! Making sure to undo anything that you dont want to include
-! As in, if you test the new contract and then want to test the new warehouse on its own
-! Remove the new contract from the code and then implement the new warehouse
+! Making sure to undo/remove anything from certain decisions that you dont want to include
+! As in, if you test the new contract and then want to test the new warehouse on its own:
+!   Remove the new contract from the code and then implement the new warehouse
 ! etc...
 
 ! Profits for all combinations:
