@@ -538,7 +538,7 @@ end-if
 !   Remove the new contract from the code and then implement the new warehouse
 ! etc...
 
-! Profits for all combinations:
+! Profits for all other combinations:
 ! 1 and 3 - £49848.50914
 ! 1 and 2 - £52020.25747
 ! 2 and 3 - INFEASIBLE
