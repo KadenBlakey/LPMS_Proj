@@ -749,4 +749,8 @@ repeat
 
 until mu > 0.02
 fclose(F_OUTPUT)
+
+
+! To check how the profit changes without making any losses
+! Paste the entire new model here with the additional ProfitCS constraint from above
 end-model
