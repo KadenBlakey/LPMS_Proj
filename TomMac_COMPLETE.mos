@@ -152,7 +152,7 @@ maximise(TotalProfit)
 writeln
 writeln("Without making any loss")
 forall(q in Quarters) do
-  writeln(PeriodNames(q), " Profit = £", getsol(PeriodProfit(q)))
+  writeln(PeriodNames(q), " Profit = £", strfmt(getsol(PeriodProfit(q)), 8, 2))
 end-do
 writeln("Total Profit = £", getsol(TotalProfit))
 
